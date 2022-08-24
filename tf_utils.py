@@ -1,13 +1,12 @@
 import tensorflow as tf
 
-
 def temporal_convolution_layer(inputs, output_units, convolution_width, causal=False, dilation_rate=[1], bias=True,
                                activation=None, dropout=None, scope='temporal-convolution-layer', reuse=False):
     """
     Convolution over the temporal axis of sequence data.
 
     Args:
-        inputs: Tensor of shape [batch size, max sequence length, input_units].
+        inputs: Tensor of shape [batch size, max sequence length, input_units]. <= 【输入形状，input_units是啥？】
         output_units: Output channels for convolution.
         convolution_width: Number of timesteps to use in convolution.
         causal: Output at timestep t is a function of inputs at or before timestep t.
@@ -20,7 +19,7 @@ def temporal_convolution_layer(inputs, output_units, convolution_width, causal=F
     with tf.variable_scope(scope, reuse=reuse):
         if causal:
             shift = (convolution_width // 2) + (int(dilation_rate[0] - 1) // 2)
-            pad = tf.zeros([tf.shape(inputs)[0], shift, inputs.shape.as_list()[2]])
+            pad = tf.zeros([tf.shape(inputs)[0], shift, inputs.shape.as_list()[2]]) # 在时间长度上pad
             inputs = tf.concat([pad, inputs], axis=1)
 
         W = tf.get_variable(
@@ -29,10 +28,11 @@ def temporal_convolution_layer(inputs, output_units, convolution_width, causal=F
                 mean=0,
                 stddev=1.0 / tf.sqrt(float(convolution_width)*float(shape(inputs, 2)))
             ),
-            shape=[convolution_width, shape(inputs, 2), output_units]
+            shape=[convolution_width, shape(inputs, 2), output_units] # convolution_width, input_units, output_units
         )
-
+        # 【不知道是怎么运算的 ... 每个维度都dilated? 】
         z = tf.nn.convolution(inputs, W, padding='SAME', dilation_rate=dilation_rate)
+        
         if bias:
             b = tf.get_variable(
                 name='biases',
@@ -68,7 +68,8 @@ def time_distributed_dense_layer(inputs, output_units, bias=True, activation=Non
             initializer=tf.random_normal_initializer(mean=0.0, stddev=1.0 / float(shape(inputs, -1))),
             shape=[shape(inputs, -1), output_units]
         )
-        z = tf.einsum('ijk,kl->ijl', inputs, W)
+        # 三维[i,j,k]和二维[k,l]运算得到结果[i,j,l], 即inputs第一维不参与矩阵乘法
+        z = tf.einsum('ijk,kl->ijl', inputs, W) # [batch size, max sequence length, output_units]
         if bias:
             b = tf.get_variable(
                 name='biases',
@@ -98,14 +99,15 @@ def sequence_smape(y, y_hat, sequence_lengths, is_nan):
     y = tf.cast(y, tf.float32)
     smape = 2*(tf.abs(y_hat - y) / (tf.abs(y) + tf.abs(y_hat)))
 
-    # ignore discontinuity
+    # ignore discontinuity 【计算MAPE 分母为0的情况？】
     zero_loss = 2.0*tf.ones_like(smape)
     nonzero_loss = smape
     smape = tf.where(tf.logical_or(tf.equal(y, 0.0), tf.equal(y_hat, 0.0)), zero_loss, nonzero_loss)
+    #  感觉应该去掉y_hat=0的情况？                               ↑
 
     sequence_mask = tf.cast(tf.sequence_mask(sequence_lengths, maxlen=max_sequence_length), tf.float32)
     sequence_mask = sequence_mask*(1 - is_nan)
-    avg_smape = tf.reduce_sum(smape*sequence_mask) / tf.reduce_sum(sequence_mask)
+    avg_smape = tf.reduce_sum(smape*sequence_mask) / tf.reduce_sum(sequence_mask) #不考虑缺失值
     return avg_smape
 
 

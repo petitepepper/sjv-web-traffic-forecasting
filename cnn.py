@@ -29,9 +29,9 @@ class DataReader(object):
         self.test_df = DataFrame(columns=data_cols, data=data)
         self.train_df, self.val_df = self.test_df.train_test_split(train_size=0.95)
 
-        print 'train size', len(self.train_df)
-        print 'val size', len(self.val_df)
-        print 'test size', len(self.test_df)
+        print('train size', len(self.train_df))
+        print('val size', len(self.val_df))
+        print('test size', len(self.test_df))
 
     def train_batch_generator(self, batch_size):
         return self.batch_generator(
@@ -61,26 +61,27 @@ class DataReader(object):
         )
 
     def batch_generator(self, batch_size, df, shuffle=True, num_epochs=10000, is_test=False):
-        batch_gen = df.batch_generator(
+        batch_gen = df.batch_generator( #这是那个自定义的DataFrame里的
             batch_size=batch_size,
             shuffle=shuffle,
             num_epochs=num_epochs,
             allow_smaller_final_batch=is_test
         )
-        data_col = 'test_data' if is_test else 'data'
+        data_col   = 'test_data'   if is_test else 'data'
         is_nan_col = 'test_is_nan' if is_test else 'is_nan'
         for batch in batch_gen:
             num_decode_steps = 64
-            full_seq_len = batch[data_col].shape[1]
-            max_encode_length = full_seq_len - num_decode_steps if not is_test else full_seq_len
+            full_seq_len = batch[data_col].shape[1] #时序长度
+            max_encode_length = full_seq_len - num_decode_steps if not is_test else full_seq_len #如果是测试集 就用所有时间点做encoding
 
-            x_encode = np.zeros([len(batch), max_encode_length])
+            x_encode = np.zeros([len(batch), max_encode_length]) #第一维是batch_size
             y_decode = np.zeros([len(batch), num_decode_steps])
             is_nan_encode = np.zeros([len(batch), max_encode_length])
             is_nan_decode = np.zeros([len(batch), num_decode_steps])
             encode_len = np.zeros([len(batch)])
             decode_len = np.zeros([len(batch)])
 
+            # TODO 没看懂
             for i, (seq, nan_seq) in enumerate(zip(batch[data_col], batch[is_nan_col])):
                 rand_len = np.random.randint(max_encode_length - 365 + 1, max_encode_length + 1)
                 x_encode_len = max_encode_length if is_test else rand_len
@@ -92,10 +93,10 @@ class DataReader(object):
                     y_decode[i, :] = seq[x_encode_len: x_encode_len + num_decode_steps]
                     is_nan_decode[i, :] = nan_seq[x_encode_len: x_encode_len + num_decode_steps]
 
-            batch['x_encode'] = x_encode
-            batch['encode_len'] = encode_len
-            batch['y_decode'] = y_decode
-            batch['decode_len'] = decode_len
+            batch['x_encode']      = x_encode
+            batch['encode_len']    = encode_len
+            batch['y_decode']      = y_decode
+            batch['decode_len']    = decode_len
             batch['is_nan_encode'] = is_nan_encode
             batch['is_nan_decode'] = is_nan_decode
 
@@ -127,23 +128,24 @@ class cnn(TFBaseModel):
         return tf.exp(x + tf.expand_dims(self.log_x_encode_mean, 1)) - 1
 
     def get_input_sequences(self):
-        self.x_encode = tf.placeholder(tf.float32, [None, None])
-        self.encode_len = tf.placeholder(tf.int32, [None])
-        self.y_decode = tf.placeholder(tf.float32, [None, self.num_decode_steps])
-        self.decode_len = tf.placeholder(tf.int32, [None])
+        self.x_encode      = tf.placeholder(tf.float32, [None, None])
+        self.encode_len    = tf.placeholder(tf.int32,   [None])
+        self.y_decode      = tf.placeholder(tf.float32, [None, self.num_decode_steps])
+        self.decode_len    = tf.placeholder(tf.int32,   [None])
         self.is_nan_encode = tf.placeholder(tf.float32, [None, None])
         self.is_nan_decode = tf.placeholder(tf.float32, [None, self.num_decode_steps])
 
         self.page_id = tf.placeholder(tf.int32, [None])
         self.project = tf.placeholder(tf.int32, [None])
-        self.access = tf.placeholder(tf.int32, [None])
-        self.agent = tf.placeholder(tf.int32, [None])
+        self.access  = tf.placeholder(tf.int32, [None])
+        self.agent   = tf.placeholder(tf.int32, [None])
 
-        self.keep_prob = tf.placeholder(tf.float32)
+        self.keep_prob   = tf.placeholder(tf.float32)
         self.is_training = tf.placeholder(tf.bool)
 
         self.log_x_encode_mean = sequence_mean(tf.log(self.x_encode + 1), self.encode_len)
-        self.log_x_encode = self.transform(self.x_encode)
+        self.log_x_encode      = self.transform(self.x_encode)
+
         self.x = tf.expand_dims(self.log_x_encode, 2)
 
         self.encode_features = tf.concat([
@@ -151,8 +153,8 @@ class cnn(TFBaseModel):
             tf.expand_dims(tf.cast(tf.equal(self.x_encode, 0.0), tf.float32), 2),
             tf.tile(tf.reshape(self.log_x_encode_mean, (-1, 1, 1)), (1, tf.shape(self.x_encode)[1], 1)),
             tf.tile(tf.expand_dims(tf.one_hot(self.project, 9), 1), (1, tf.shape(self.x_encode)[1], 1)),
-            tf.tile(tf.expand_dims(tf.one_hot(self.access, 3), 1), (1, tf.shape(self.x_encode)[1], 1)),
-            tf.tile(tf.expand_dims(tf.one_hot(self.agent, 2), 1), (1, tf.shape(self.x_encode)[1], 1)),
+            tf.tile(tf.expand_dims(tf.one_hot(self.access, 3), 1),  (1, tf.shape(self.x_encode)[1], 1)),
+            tf.tile(tf.expand_dims(tf.one_hot(self.agent, 2), 1),   (1, tf.shape(self.x_encode)[1], 1)),
         ], axis=2)
 
         decode_idx = tf.tile(tf.expand_dims(tf.range(self.num_decode_steps), 0), (tf.shape(self.y_decode)[0], 1))
@@ -160,8 +162,8 @@ class cnn(TFBaseModel):
             tf.one_hot(decode_idx, self.num_decode_steps),
             tf.tile(tf.reshape(self.log_x_encode_mean, (-1, 1, 1)), (1, self.num_decode_steps, 1)),
             tf.tile(tf.expand_dims(tf.one_hot(self.project, 9), 1), (1, self.num_decode_steps, 1)),
-            tf.tile(tf.expand_dims(tf.one_hot(self.access, 3), 1), (1, self.num_decode_steps, 1)),
-            tf.tile(tf.expand_dims(tf.one_hot(self.agent, 2), 1), (1, self.num_decode_steps, 1)),
+            tf.tile(tf.expand_dims(tf.one_hot(self.access, 3), 1),  (1, self.num_decode_steps, 1)),
+            tf.tile(tf.expand_dims(tf.one_hot(self.agent, 2), 1),   (1, self.num_decode_steps, 1)),
         ], axis=2)
 
         return self.x

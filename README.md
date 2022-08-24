@@ -39,11 +39,14 @@ Python packages:
 
 ## 1. `prepare_data.py`
 原始数据是这样的：
+
 <img src="figures/images/1.1_org_data.png" width="540">
 
 然后根据官方的解释，"Page"里包含name,project,access,agent，解析一下可以得到
-<img src="figures/images/1.2_parse_page.png" width="440">
+
+<img src="figures/images/1.2_parse_page.png" width="250">
 
 在进行Label Encoding以后得到：
-<img src="figures/images/1.3_after_le_encoding.png" width="440">
+
+<img src="figures/images/1.3_after_le_encoding.png" width="250">
 
