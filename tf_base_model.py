@@ -98,7 +98,7 @@ class TFBaseModel(object):
 
         self.graph = self.build_graph()
         self.session = tf.Session(graph=self.graph)
-        print 'built graph'
+        print('built graph')
 
     def calculate_loss(self):
         raise NotImplementedError('subclass must implement this')

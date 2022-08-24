@@ -1,3 +1,4 @@
+#%%
 from __future__ import unicode_literals
 
 import os
@@ -13,21 +14,22 @@ def parse_page(x):
 
 
 def nan_fill_forward(x):
-    for i in range(x.shape[0]):
+    for i in range(x.shape[0]): #遍历每一行
         fill_val = None
-        for j in range(x.shape[1] - 3, x.shape[1]):
+        for j in range(x.shape[1] - 3, x.shape[1]): #填补"access","agent","page_id"
             if np.isnan(x[i, j]) and fill_val is not None:
                 x[i, j] = fill_val
             else:
                 fill_val = x[i, j]
     return x
 
-
+#%%
 df = pd.read_csv('data/raw/train_final.csv', encoding='utf-8')
 date_cols = [i for i in df.columns if i != 'Page']
 
 df['name'], df['project'], df['access'], df['agent'] = zip(*df['Page'].apply(parse_page))
 
+#%%
 le = LabelEncoder()
 df['project'] = le.fit_transform(df['project'])
 df['access'] = le.fit_transform(df['access'])
@@ -39,6 +41,7 @@ if not os.path.isdir('data/processed'):
 
 df[['page_id', 'Page']].to_csv('data/processed/page_ids.csv', encoding='utf-8', index=False)
 
+#%%
 data = df[date_cols].values
 np.save('data/processed/data.npy', np.nan_to_num(data))
 np.save('data/processed/is_nan.npy', np.isnan(data).astype(int))
