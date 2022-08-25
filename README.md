@@ -37,6 +37,11 @@ Python packages:
 
 # 代码解读
 
+代码使用顺序：
+1. `prepare_data.py`
+2. `cnn.py` : 基于`data_frame.py`,`tf_base_model.py`和`tf_utils.py`
+
+
 ## 1. `prepare_data.py`
 原始数据是这样的：
 <img src="figures/images/1.1_org_data.png" width="540">

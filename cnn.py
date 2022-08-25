@@ -146,11 +146,12 @@ class cnn(TFBaseModel):
         self.log_x_encode = self.transform(self.x_encode)
         self.x = tf.expand_dims(self.log_x_encode, 2)
 
+        # tf.tile(inputs, multiple) 在multiple设置的各个维度上分别复制inputs N次
         self.encode_features = tf.concat([
             tf.expand_dims(self.is_nan_encode, 2),
             tf.expand_dims(tf.cast(tf.equal(self.x_encode, 0.0), tf.float32), 2),
             tf.tile(tf.reshape(self.log_x_encode_mean, (-1, 1, 1)), (1, tf.shape(self.x_encode)[1], 1)),
-            tf.tile(tf.expand_dims(tf.one_hot(self.project, 9), 1), (1, tf.shape(self.x_encode)[1], 1)),
+            tf.tile(tf.expand_dims(tf.one_hot(self.project, 9), 1), (1, tf.shape(self.x_encode)[1], 1)), 
             tf.tile(tf.expand_dims(tf.one_hot(self.access, 3), 1), (1, tf.shape(self.x_encode)[1], 1)),
             tf.tile(tf.expand_dims(tf.one_hot(self.agent, 2), 1), (1, tf.shape(self.x_encode)[1], 1)),
         ], axis=2)
@@ -247,6 +248,7 @@ class cnn(TFBaseModel):
         y_hat = time_distributed_dense_layer(h, 1, scope='dense-decode-2')
         return y_hat
 
+    # TODO ： 再看看吧 再看看吧
     def decode(self, x, conv_inputs, features):
         batch_size = tf.shape(x)[0]
 
@@ -254,14 +256,14 @@ class cnn(TFBaseModel):
         state_queues = []
         for i, (conv_input, dilation) in enumerate(zip(conv_inputs, self.dilations)):
             batch_idx = tf.range(batch_size)
-            batch_idx = tf.tile(tf.expand_dims(batch_idx, 1), (1, dilation))
-            batch_idx = tf.reshape(batch_idx, [-1])
+            batch_idx = tf.tile(tf.expand_dims(batch_idx, 1), (1, dilation)) # 在第二维加上dilation信息
+            batch_idx = tf.reshape(batch_idx, [-1]) #不懂
 
             queue_begin_time = self.encode_len - dilation - 1
             temporal_idx = tf.expand_dims(queue_begin_time, 1) + tf.expand_dims(tf.range(dilation), 0)
             temporal_idx = tf.reshape(temporal_idx, [-1])
 
-            idx = tf.stack([batch_idx, temporal_idx], axis=1)
+            idx = tf.stack([batch_idx, temporal_idx], axis=1) # 感觉应该是每个batch里某些时间点被摘出来，跟dilation有关但是不知道具体
             slices = tf.reshape(tf.gather_nd(conv_input, idx), (batch_size, dilation, shape(conv_input, 2)))
 
             layer_ta = tf.TensorArray(dtype=tf.float32, size=dilation + self.num_decode_steps)
@@ -276,7 +278,7 @@ class cnn(TFBaseModel):
         emit_ta = tf.TensorArray(size=self.num_decode_steps, dtype=tf.float32)
 
         # initialize other loop vars
-        elements_finished = 0 >= self.decode_len
+        elements_finished = (0 >= self.decode_len)
         time = tf.constant(0, dtype=tf.int32)
 
         # get initial x input
@@ -294,7 +296,7 @@ class cnn(TFBaseModel):
 
             skip_outputs, updated_queues = [], []
             for i, (conv_input, queue, dilation) in enumerate(zip(conv_inputs, queues, self.dilations)):
-
+            # 这里用的queues就是上面的state_queues
                 state = queue.read(time)
                 with tf.variable_scope('dilated-conv-decode-{}'.format(i), reuse=True):
                     w_conv = tf.get_variable('weights'.format(i))
