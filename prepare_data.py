@@ -24,7 +24,7 @@ def nan_fill_forward(x):
     return x
 
 #%%
-df = pd.read_csv('data/raw/train_final.csv', encoding='utf-8')
+df = pd.read_csv('data/raw/train_2.csv', encoding='utf-8')
 date_cols = [i for i in df.columns if i != 'Page']
 
 df['name'], df['project'], df['access'], df['agent'] = zip(*df['Page'].apply(parse_page))
@@ -39,9 +39,8 @@ df['page_id'] = le.fit_transform(df['Page'])
 if not os.path.isdir('data/processed'):
     os.makedirs('data/processed')
 
-df[['page_id', 'Page']].to_csv('data/processed/page_ids.csv', encoding='utf-8', index=False)
-
 #%%
+df[['page_id', 'Page']].to_csv('data/processed/page_ids.csv', encoding='utf-8', index=False)
 data = df[date_cols].values
 np.save('data/processed/data.npy', np.nan_to_num(data))
 np.save('data/processed/is_nan.npy', np.isnan(data).astype(int))
@@ -50,6 +49,7 @@ np.save('data/processed/access.npy', df['access'].values)
 np.save('data/processed/agent.npy', df['agent'].values)
 np.save('data/processed/page_id.npy', df['page_id'].values)
 
+#%%
 test_data = nan_fill_forward(df[date_cols].values)
 np.save('data/processed/test_data.npy', np.nan_to_num(test_data))
 np.save('data/processed/test_is_nan.npy', np.isnan(test_data).astype(int))

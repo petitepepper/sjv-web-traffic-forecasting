@@ -47,15 +47,16 @@ class DataFrame(object):
 
     def batch_generator(self, batch_size, shuffle=True, num_epochs=10000, allow_smaller_final_batch=False):
         epoch_num = 0
+        # 每个epoch都生成 len(data) // batch_size 组数据
         while epoch_num < num_epochs:
             if shuffle:
-                self.shuffle()
+                self.shuffle() #对数据的index进行shuffle
 
-            for i in range(0, self.length + 1, batch_size):
+            for i in range(0, self.length + 1, batch_size): 
                 batch_idx = self.idx[i: i + batch_size]
                 if not allow_smaller_final_batch and len(batch_idx) != batch_size:
-                    break
-                yield DataFrame(columns=copy.copy(self.columns), data=[mat[batch_idx].copy() for mat in self.data])
+                    break #最后一个batch可能小于规定大小
+                yield DataFrame(columns=copy.copy(self.columns), data=[mat[batch_idx].copy() for mat in self.data]) #data是list，每个子list是原数据的一列
 
             epoch_num += 1
 

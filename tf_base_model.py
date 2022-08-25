@@ -146,12 +146,12 @@ class TFBaseModel(object):
                 if hasattr(self, 'monitor_tensors'):
                     for name, tensor in self.monitor_tensors.items():
                         [np_val] = self.session.run([tensor], feed_dict=val_feed_dict)
-                        print name
-                        print 'min', np_val.min()
-                        print 'max', np_val.max()
-                        print 'mean', np_val.mean()
-                        print 'std', np_val.std()
-                        print 'nans', np.isnan(np_val).sum()
+                        print(name)
+                        print('min  : ', np_val.min())
+                        print('max  : ', np_val.max())
+                        print('mean : ', np_val.mean())
+                        print('std  : ', np_val.std())
+                        print('nans : ', np.isnan(np_val).sum())
                         print
 
                 # train step
