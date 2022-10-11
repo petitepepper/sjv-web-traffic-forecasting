@@ -66,7 +66,7 @@ class DataReader(object):
             shuffle=shuffle,
             num_epochs=num_epochs,
             allow_smaller_final_batch=is_test
-        )
+        ) # yield : 分成一系列长度为batch_size的数据
         data_col   = 'test_data'   if is_test else 'data'
         is_nan_col = 'test_is_nan' if is_test else 'is_nan'
         for batch in batch_gen:
@@ -74,18 +74,18 @@ class DataReader(object):
             full_seq_len = batch[data_col].shape[1] #时序长度
             max_encode_length = full_seq_len - num_decode_steps if not is_test else full_seq_len #如果是测试集 就用所有时间点做encoding
 
-            x_encode = np.zeros([len(batch), max_encode_length]) #第一维是batch_size
-            y_decode = np.zeros([len(batch), num_decode_steps])
+            x_encode = np.zeros([len(batch), max_encode_length]) # (batch_size, encode_len)
+            y_decode = np.zeros([len(batch), num_decode_steps])  # (batch_size, 64)
             is_nan_encode = np.zeros([len(batch), max_encode_length])
             is_nan_decode = np.zeros([len(batch), num_decode_steps])
-            encode_len = np.zeros([len(batch)])
+            encode_len = np.zeros([len(batch)]) # 记录batch中每一行的数据的encode_len
             decode_len = np.zeros([len(batch)])
 
-            # TODO 没看懂
+            # 把原来是日期作为列，一个page作为一行
             for i, (seq, nan_seq) in enumerate(zip(batch[data_col], batch[is_nan_col])):
                 rand_len = np.random.randint(max_encode_length - 365 + 1, max_encode_length + 1)
-                x_encode_len = max_encode_length if is_test else rand_len
-                x_encode[i, :x_encode_len] = seq[:x_encode_len]
+                x_encode_len = max_encode_length if is_test else rand_len # TODO　为什么要用随机长度...?
+                x_encode[i, :x_encode_len]      = seq[:x_encode_len]
                 is_nan_encode[i, :x_encode_len] = nan_seq[:x_encode_len]
                 encode_len[i] = x_encode_len
                 decode_len[i] = num_decode_steps
@@ -146,7 +146,7 @@ class cnn(TFBaseModel):
         self.log_x_encode_mean = sequence_mean(tf.log(self.x_encode + 1), self.encode_len)
         self.log_x_encode      = self.transform(self.x_encode)
 
-        self.x = tf.expand_dims(self.log_x_encode, 2)
+        self.x = tf.expand_dims(self.log_x_encode, 2) # ！！！！所以其实x的维度是 (None, #features, 1)
 
         # tf.tile(inputs, multiple) 在multiple设置的各个维度上分别复制inputs N次
         self.encode_features = tf.concat([
@@ -208,7 +208,7 @@ class cnn(TFBaseModel):
         h = time_distributed_dense_layer(skip_outputs, 128, scope='dense-encode-1', activation=tf.nn.relu)
         y_hat = time_distributed_dense_layer(h, 1, scope='dense-encode-2')
 
-        return y_hat, conv_inputs[:-1]
+        return y_hat, conv_inputs[:-1] # conv_inputs expect the last one 
 
     def initialize_decode_params(self, x, features):
         x = tf.concat([x, features], axis=2)
@@ -265,7 +265,7 @@ class cnn(TFBaseModel):
             temporal_idx = tf.expand_dims(queue_begin_time, 1) + tf.expand_dims(tf.range(dilation), 0)
             temporal_idx = tf.reshape(temporal_idx, [-1])
 
-            idx = tf.stack([batch_idx, temporal_idx], axis=1) # 感觉应该是每个batch里某些时间点被摘出来，跟dilation有关但是不知道具体
+            idx = tf.stack([batch_idx, temporal_idx], axis=1) # 感觉应该是每个batch里某些时间点被摘出来，跟dilation有关但是不知道具体 
             slices = tf.reshape(tf.gather_nd(conv_input, idx), (batch_size, dilation, shape(conv_input, 2)))
 
             layer_ta = tf.TensorArray(dtype=tf.float32, size=dilation + self.num_decode_steps)
@@ -284,8 +284,8 @@ class cnn(TFBaseModel):
         time = tf.constant(0, dtype=tf.int32)
 
         # get initial x input
-        current_idx = tf.stack([tf.range(tf.shape(self.encode_len)[0]), self.encode_len - 1], axis=1)
-        initial_input = tf.gather_nd(x, current_idx)
+        current_idx = tf.stack([tf.range(tf.shape(self.encode_len)[0]), self.encode_len - 1], axis=1) 
+        initial_input = tf.gather_nd(x, current_idx) # get the elements of `current_idx` in `x` => 获取batch中每个element的最后一个时间步的数据 =>
 
         def loop_fn(time, current_input, queues):
             current_features = features_ta.read(time)

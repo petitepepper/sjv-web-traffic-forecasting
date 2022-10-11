@@ -114,10 +114,10 @@ class TFBaseModel(object):
                 step = 0
 
             train_generator = self.reader.train_batch_generator(self.batch_size)
-            val_generator = self.reader.val_batch_generator(self.num_validation_batches*self.batch_size)
+            val_generator   = self.reader.val_batch_generator(self.num_validation_batches*self.batch_size)
 
             train_loss_history = deque(maxlen=self.loss_averaging_window)
-            val_loss_history = deque(maxlen=self.loss_averaging_window)
+            val_loss_history   = deque(maxlen=self.loss_averaging_window)
 
             best_validation_loss, best_validation_tstep = float('inf'), 0
             restarts = 0
