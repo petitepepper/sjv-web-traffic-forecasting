@@ -21,12 +21,12 @@ class DataFrame(object):
     def __init__(self, columns, data):
         assert len(columns) == len(data), 'columns length does not match data length'
 
-        lengths = [mat.shape[0] for mat in data]
-        assert len(set(lengths)) == 1, 'all matrices in data must have same first dimension'
+        lengths = [mat.shape[0] for mat in data] # data是list of每个col的数据
+        assert len(set(lengths)) == 1, 'all matrices in data must have same first dimension' #确保行数一致
 
-        self.length = lengths[0]
+        self.length = lengths[0] #数据量
         self.columns = columns
-        self.data = data
+        self.data = data         #list of 每一列数据
         self.dict = dict(zip(self.columns, self.data))
         self.idx = np.arange(self.length)
 
@@ -42,7 +42,7 @@ class DataFrame(object):
     def train_test_split(self, train_size, random_state=np.random.randint(10000)):
         train_idx, test_idx = train_test_split(self.idx, train_size=train_size, random_state=random_state)
         train_df = DataFrame(copy.copy(self.columns), [mat[train_idx] for mat in self.data])
-        test_df = DataFrame(copy.copy(self.columns), [mat[test_idx] for mat in self.data])
+        test_df  = DataFrame(copy.copy(self.columns), [mat[test_idx]  for mat in self.data])
         return train_df, test_df
 
     def batch_generator(self, batch_size, shuffle=True, num_epochs=10000, allow_smaller_final_batch=False):
@@ -50,12 +50,12 @@ class DataFrame(object):
         # 每个epoch都生成 len(data) // batch_size 组数据
         while epoch_num < num_epochs:
             if shuffle:
-                self.shuffle() #对数据的index进行shuffle
+                self.shuffle() # 对数据的index进行shuffle
 
             for i in range(0, self.length + 1, batch_size): 
                 batch_idx = self.idx[i: i + batch_size]
                 if not allow_smaller_final_batch and len(batch_idx) != batch_size:
-                    break #最后一个batch可能小于规定大小
+                    break      # 最后一个batch可能小于规定大小
                 yield DataFrame(columns=copy.copy(self.columns), data=[mat[batch_idx].copy() for mat in self.data]) #data是list，每个子list是原数据的一列
 
             epoch_num += 1

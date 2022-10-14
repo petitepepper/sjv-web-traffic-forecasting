@@ -290,10 +290,10 @@ class TFBaseModel(object):
 
         reload(logging)  # bad
         logging.basicConfig(
-            filename=os.path.join(log_dir, log_file),
-            level=logging.INFO,
-            format='[[%(asctime)s]] %(message)s',
-            datefmt='%m/%d/%Y %I:%M:%S %p'
+            filename = os.path.join(log_dir, log_file),
+            level    = logging.INFO,
+            format   = '[[%(asctime)s]] %(message)s',
+            datefmt  = '%m/%d/%Y %I:%M:%S %p'
         )
         logging.getLogger().addHandler(logging.StreamHandler())
 

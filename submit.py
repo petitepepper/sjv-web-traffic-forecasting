@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 
 
-preds_mat = np.load(os.path.join('predictions', 'preds.npy'))
+preds_mat  = np.load(os.path.join('predictions', 'preds.npy'))
 labels_mat = np.load(os.path.join('predictions', 'labels.npy'))
 priors_mat = np.load(os.path.join('predictions', 'priors.npy'))
-pages_mat = np.load(os.path.join('predictions', 'page_id.npy'))
+pages_mat  = np.load(os.path.join('predictions', 'page_id.npy'))
 
 df = pd.read_csv('data/raw/train_final.csv', encoding='utf-8')
 date_cols = [i for i in df.columns if i != 'Page']

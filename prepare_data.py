@@ -42,14 +42,14 @@ if not os.path.isdir('data/processed'):
 #%%
 df[['page_id', 'Page']].to_csv('data/processed/page_ids.csv', encoding='utf-8', index=False)
 data = df[date_cols].values
-np.save('data/processed/data.npy', np.nan_to_num(data))
-np.save('data/processed/is_nan.npy', np.isnan(data).astype(int))
+np.save('data/processed/data.npy',    np.nan_to_num(data))
+np.save('data/processed/is_nan.npy',  np.isnan(data).astype(int))
 np.save('data/processed/project.npy', df['project'].values)
-np.save('data/processed/access.npy', df['access'].values)
-np.save('data/processed/agent.npy', df['agent'].values)
+np.save('data/processed/access.npy' , df['access'].values)
+np.save('data/processed/agent.npy'  , df['agent'].values)
 np.save('data/processed/page_id.npy', df['page_id'].values)
 
 #%%
-test_data = nan_fill_forward(df[date_cols].values)
+test_data = nan_fill_forward(df[date_cols].values)  # 为什么test就bfill？
 np.save('data/processed/test_data.npy', np.nan_to_num(test_data))
 np.save('data/processed/test_is_nan.npy', np.isnan(test_data).astype(int))
