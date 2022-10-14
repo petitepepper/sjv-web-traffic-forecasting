@@ -15,19 +15,20 @@ class DataReader(object):
 
     def __init__(self, data_dir):
         data_cols = [
-            'data',
-            'is_nan',
+            'data',       # list of 过去所有日期的数据
+            'is_nan', 
             'page_id',
             'project',
             'access',
             'agent',
-            'test_data',
-            'test_is_nan'
+            'test_data',  # 原始daily数据bfill.. 
+            'test_is_nan' 
         ]
         data = [np.load(os.path.join(data_dir, '{}.npy'.format(i))) for i in data_cols]
 
+        # 每一行数据：所有历史 + 一些特征 + test数据
         self.test_df = DataFrame(columns=data_cols, data=data)
-        self.train_df, self.val_df = self.test_df.train_test_split(train_size=0.95)
+        self.train_df, self.val_df = self.test_df.train_test_split(train_size=0.95) 
 
         print('train size', len(self.train_df))
         print('val size', len(self.val_df))
@@ -67,12 +68,13 @@ class DataReader(object):
             num_epochs=num_epochs,
             allow_smaller_final_batch=is_test
         ) # yield : 分成一系列长度为batch_size的数据
-        data_col   = 'test_data'   if is_test else 'data'
-        is_nan_col = 'test_is_nan' if is_test else 'is_nan'
+        data_col   = 'test_data'   if is_test else 'data'   #用于决定是train/test data 的generator 
+        is_nan_col = 'test_is_nan' if is_test else 'is_nan' 
         for batch in batch_gen:
             num_decode_steps = 64
             full_seq_len = batch[data_col].shape[1] #时序长度
-            max_encode_length = full_seq_len - num_decode_steps if not is_test else full_seq_len #如果是测试集 就用所有时间点做encoding
+            #Train: 把要预测的部分剔除； Test: 所有时间点都可用 
+            max_encode_length = full_seq_len - num_decode_steps if not is_test else full_seq_len 
 
             x_encode = np.zeros([len(batch), max_encode_length]) # (batch_size, encode_len)
             y_decode = np.zeros([len(batch), num_decode_steps])  # (batch_size, 64)
@@ -84,16 +86,18 @@ class DataReader(object):
             # 把原来是日期作为列，一个page作为一行
             for i, (seq, nan_seq) in enumerate(zip(batch[data_col], batch[is_nan_col])):
                 rand_len = np.random.randint(max_encode_length - 365 + 1, max_encode_length + 1)
-                x_encode_len = max_encode_length if is_test else rand_len # TODO　为什么要用随机长度...?
-                x_encode[i, :x_encode_len]      = seq[:x_encode_len]
+                 # Train用随机长度，其余用0填补： 让模型能够处理缺失值
+                x_encode_len = max_encode_length if is_test else rand_len
+                x_encode[i, :x_encode_len]      = seq[:x_encode_len] 
                 is_nan_encode[i, :x_encode_len] = nan_seq[:x_encode_len]
-                encode_len[i] = x_encode_len
-                decode_len[i] = num_decode_steps
-                if not is_test:
-                    y_decode[i, :] = seq[x_encode_len: x_encode_len + num_decode_steps]
+                encode_len[i] = x_encode_len     # 告诉模型有多少个有效数值
+                decode_len[i] = num_decode_steps # 
+                if not is_test: # Train
+                    y_decode[i, :] = seq[x_encode_len: x_encode_len + num_decode_steps] # 取encode后面的一段长度64的数据作为y_decode
                     is_nan_decode[i, :] = nan_seq[x_encode_len: x_encode_len + num_decode_steps]
 
-            batch['x_encode']      = x_encode
+            # batch是dataframe，包括原始数据中的所有历史数据+categorical，然后再加上下面几行:
+            batch['x_encode']      = x_encode 
             batch['encode_len']    = encode_len
             batch['y_decode']      = y_decode
             batch['decode_len']    = decode_len
@@ -146,12 +150,13 @@ class cnn(TFBaseModel):
         self.log_x_encode_mean = sequence_mean(tf.log(self.x_encode + 1), self.encode_len)
         self.log_x_encode      = self.transform(self.x_encode)
 
-        self.x = tf.expand_dims(self.log_x_encode, 2) # ！！！！所以其实x的维度是 (None, #features, 1)
+        self.x = tf.expand_dims(self.log_x_encode, 2) # ！！！！所以其实x的维度是 (None, #max_encode_length, 1)
 
-        # tf.tile(inputs, multiple) 在multiple设置的各个维度上分别复制inputs N次
+        # tf.tile(inputs, multiple) 在multiple设置的各个维度上分别复制inputs N 次
         self.encode_features = tf.concat([
             tf.expand_dims(self.is_nan_encode, 2),
             tf.expand_dims(tf.cast(tf.equal(self.x_encode, 0.0), tf.float32), 2),
+            # 其实就是把每一个单一的数值duplicate到每一行数据
             tf.tile(tf.reshape(self.log_x_encode_mean, (-1, 1, 1)), (1, tf.shape(self.x_encode)[1], 1)),
             tf.tile(tf.expand_dims(tf.one_hot(self.project, 9), 1), (1, tf.shape(self.x_encode)[1], 1)),
             tf.tile(tf.expand_dims(tf.one_hot(self.access, 3), 1),  (1, tf.shape(self.x_encode)[1], 1)),
@@ -167,7 +172,7 @@ class cnn(TFBaseModel):
             tf.tile(tf.expand_dims(tf.one_hot(self.agent, 2), 1),   (1, self.num_decode_steps, 1)),
         ], axis=2)
 
-        return self.x
+        return self.x #只有历史数据(#团队数量, #max_encode_length, 1),  
 
     def encode(self, x, features):
         x = tf.concat([x, features], axis=2)
@@ -378,7 +383,7 @@ class cnn(TFBaseModel):
         self.prediction_tensors = {
             'priors': self.x_encode,
             'labels': self.labels,
-            'preds': self.preds,
+            'preds' : self.preds,
             'page_id': self.page_id,
         }
 
